@@ -50,9 +50,9 @@ jobs:
         # Generate the report
         allure generate ${{ env.ALLURE_RESULTS_DIR }} -o ${{ env.ALLURE_REPORT_DIR }} --clean
     
-    # Archive artifacts for the deploy job to use
+    # Archive artifacts for the deploy job to use - update to v4
     - name: Archive Allure Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: allure-report
         path: ${{ env.ALLURE_REPORT_DIR }}
@@ -69,9 +69,9 @@ jobs:
       with:
         persist-credentials: true
     
-    # Download the report artifact from the previous job
+    # Download the report artifact from the previous job - update to v4
     - name: Download Allure Report
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: allure-report
         path: ${{ env.ALLURE_REPORT_DIR }}
