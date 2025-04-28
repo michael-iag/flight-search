@@ -6,6 +6,17 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Add permissions required for github pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Configure pages deployment environment
+env:
+  ALLURE_RESULTS_DIR: allure-results
+  ALLURE_REPORT_DIR: allure-report
+
 jobs:
   behave-tests:
     runs-on: ubuntu-latest
@@ -25,7 +36,7 @@ jobs:
 
     - name: Run Behave Tests with Allure
       run: |
-        behave -f allure_behave.formatter:AllureFormatter -o allure-results features/
+        behave -f allure_behave.formatter:AllureFormatter -o ${{ env.ALLURE_RESULTS_DIR }} features/
       continue-on-error: true
 
     - name: Generate Allure Report
@@ -37,13 +48,17 @@ jobs:
         export PATH=$PATH:$(pwd)/allure-2.24.0/bin
         
         # Generate the report
-        allure generate allure-results -o allure-report --clean
+        allure generate ${{ env.ALLURE_RESULTS_DIR }} -o ${{ env.ALLURE_REPORT_DIR }} --clean
+
+    # Add GitHub Pages configuration
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
 
     - name: Deploy to GitHub Pages
       if: success() || failure()
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./allure-report
+        publish_dir: ./${{ env.ALLURE_REPORT_DIR }}
         publish_branch: gh-pages  # The branch the report will be deployed to
         force_orphan: true  # Use this to only keep the latest report 
