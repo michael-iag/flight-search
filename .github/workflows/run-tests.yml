@@ -6,9 +6,9 @@ on:
   pull_request:
     branches: [ main, master ]
 
-# Add permissions required for github pages
+# Update permissions to ensure we can push to the repository
 permissions:
-  contents: read
+  contents: write  # Changed from 'read' to 'write' to allow pushing to branches
   pages: write
   id-token: write
 
@@ -23,6 +23,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        persist-credentials: true  # Ensure we have credentials for push
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -50,15 +52,24 @@ jobs:
         # Generate the report
         allure generate ${{ env.ALLURE_RESULTS_DIR }} -o ${{ env.ALLURE_REPORT_DIR }} --clean
 
-    # Add GitHub Pages configuration
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-
+    # We'll skip the configure-pages step since it's failing
+    # and use a direct git-based deployment approach
+    
     - name: Deploy to GitHub Pages
       if: success() || failure()
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./${{ env.ALLURE_REPORT_DIR }}
-        publish_branch: gh-pages  # The branch the report will be deployed to
-        force_orphan: true  # Use this to only keep the latest report 
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        
+        # Create a temporary branch and copy the report
+        git checkout --orphan gh-pages-temp
+        git rm -rf .
+        cp -r ${{ env.ALLURE_REPORT_DIR }}/* .
+        
+        # Make sure there's at least one file for git to commit
+        touch .nojekyll
+        
+        # Commit and push to gh-pages
+        git add .
+        git commit -m "Update Allure report"
+        git push -f origin gh-pages-temp:gh-pages 
