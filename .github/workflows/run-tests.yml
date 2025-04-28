@@ -2,21 +2,21 @@ name: Run BDD Tests and Generate Allure Report
 
 on:
   push:
-    branches: [ main, master ] # Trigger on pushes to main or master
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, master ] # Trigger on pull requests to main or master
+    branches: [ main, master ]
 
 jobs:
   behave-tests:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4 # Use latest version
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5 # Use latest version
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10' # Specify Python version
+        python-version: '3.10'
 
     - name: Install dependencies
       run: |
@@ -26,14 +26,24 @@ jobs:
     - name: Run Behave Tests with Allure
       run: |
         behave -f allure_behave.formatter:AllureFormatter -o allure-results features/
-      # Continue even if tests fail, so report is always uploaded
-      continue-on-error: true 
+      continue-on-error: true
 
-    - name: Upload Allure Results
-      uses: actions/upload-artifact@v4 # Use latest version
-      if: always() # Always upload artifacts, even if tests fail
+    - name: Generate Allure Report
+      if: always()
+      run: |
+        # Install Allure command-line tool
+        curl -o allure-commandline.tgz -OLs https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.24.0/allure-commandline-2.24.0.tgz
+        tar -zxvf allure-commandline.tgz
+        export PATH=$PATH:$(pwd)/allure-2.24.0/bin
+        
+        # Generate the report
+        allure generate allure-results -o allure-report --clean
+
+    - name: Deploy to GitHub Pages
+      if: success() || failure()
+      uses: peaceiris/actions-gh-pages@v3
       with:
-        name: allure-results-flight-search
-        path: allure-results/
-        retention-days: 7 # Keep artifacts for 7 days
-
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./allure-report
+        publish_branch: gh-pages  # The branch the report will be deployed to
+        force_orphan: true  # Use this to only keep the latest report 
