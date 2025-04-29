@@ -1,7 +1,3 @@
 behave
 allure-behave
-<<<<<<< HEAD
 ddtrace
-=======
-ddtrace
->>>>>>> 1ae2569438a8b77a09692cd529f8fe7dbe67cfe5
