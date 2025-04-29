@@ -31,12 +31,20 @@ def before_all(context):
     context.failed_scenarios = 0
     context.skipped_scenarios = 0
     context.tag_counts = {}
+    # Add debugging flag
+    context.debug_enabled = True
 
 def before_scenario(context, scenario):
     """Set up before each scenario.
     Record scenario start time.
     """
+    if getattr(context, 'debug_enabled', False):
+        print(f"Starting scenario: {scenario.name}")
     context.scenario_start_time = time.time()
+    
+    # Count tags when the scenario actually runs
+    for tag in scenario.tags:
+        context.tag_counts[tag] = context.tag_counts.get(tag, 0) + 1
 
 def after_scenario(context, scenario):
     """Clean up after each scenario.
@@ -44,6 +52,9 @@ def after_scenario(context, scenario):
     """
     context.scenario_count += 1
     scenario_duration_ms = (time.time() - context.scenario_start_time) * 1000
+    
+    if getattr(context, 'debug_enabled', False):
+        print(f"Scenario completed: {scenario.name}, status: {scenario.status.name}")
 
     # Common tags for scenario metrics
     scenario_tags = [
@@ -55,23 +66,21 @@ def after_scenario(context, scenario):
     # Send scenario duration as a distribution metric
     statsd.distribution("behave.scenario.duration", scenario_duration_ms, tags=scenario_tags)
 
-    # Increment status counters
-    if scenario.status == "passed":
+    # Increment status counters - use the status.name approach
+    status_name = scenario.status.name if hasattr(scenario.status, 'name') else str(scenario.status)
+    
+    if status_name == "passed":
         context.passed_scenarios += 1
         statsd.increment("behave.scenario.passed", tags=scenario_tags)
-    elif scenario.status == "failed":
+    elif status_name == "failed":
         context.failed_scenarios += 1
         statsd.increment("behave.scenario.failed", tags=scenario_tags)
-    elif scenario.status == "skipped":
+    elif status_name == "skipped":
         context.skipped_scenarios += 1
         statsd.increment("behave.scenario.skipped", tags=scenario_tags)
     else:
-        # Handle other statuses if necessary (untested, etc.)
-        statsd.increment("behave.scenario.other", tags=scenario_tags)
-
-    # Count scenarios per tag
-    for tag in scenario.tags:
-        context.tag_counts[tag] = context.tag_counts.get(tag, 0) + 1
+        # Handle other statuses
+        statsd.increment(f"behave.scenario.{status_name}", tags=scenario_tags)
 
 def after_all(context):
     """Clean up after all features.
