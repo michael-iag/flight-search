@@ -12,11 +12,11 @@ options = {
     # Optional: Add default tags to all metrics sent from this environment
     # Example: Check for GitHub Actions environment variables
     "statsd_default_tags": [
-        f"repository:{os.environ.get("GITHUB_REPOSITORY", "unknown")}",
-        f"workflow:{os.environ.get("GITHUB_WORKFLOW", "unknown")}",
-        f"run_id:{os.environ.get("GITHUB_RUN_ID", "unknown")}",
-        f"commit:{os.environ.get("GITHUB_SHA", "unknown")}",
-        f"branch:{os.environ.get("GITHUB_REF_NAME", "unknown")}"
+        f"repository:{os.environ.get('GITHUB_REPOSITORY', 'unknown')}",
+        f"workflow:{os.environ.get('GITHUB_WORKFLOW', 'unknown')}",
+        f"run_id:{os.environ.get('GITHUB_RUN_ID', 'unknown')}",
+        f"commit:{os.environ.get('GITHUB_SHA', 'unknown')}",
+        f"branch:{os.environ.get('GITHUB_REF_NAME', 'unknown')}"
     ]
 }
 initialize(**options)
