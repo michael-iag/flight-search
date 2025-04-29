@@ -116,3 +116,5 @@ jobs:
         git commit -m "Update Allure report"
         git push -f origin gh-pages-temp:gh-pages
 
+        git push -f origin gh-pages-temp:gh-pages
+
