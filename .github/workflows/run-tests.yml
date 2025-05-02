@@ -132,15 +132,51 @@ jobs:
         echo "Checking JUnit directory..."
         ls -la ${{ env.JUNIT_RESULTS_DIR }}
         
-        # Create metrics.json file - using separate echo commands to avoid YAML parsing issues
+        # Extract metrics directly from JUnit XML with proper parsing
+        if [ -d "${{ env.JUNIT_RESULTS_DIR }}" ] && [ "$(ls -A ${{ env.JUNIT_RESULTS_DIR }})" ]; then
+          echo "Extracting metrics from JUnit XML files..."
+          
+          # Total tests - count testcase elements
+          TOTAL_TESTS=$(grep -c "<testcase " ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          echo "Total tests: $TOTAL_TESTS"
+          
+          # Failed tests - count failures 
+          FAILED_TESTS=$(grep -c "status=\"failed\"" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          echo "Failed tests: $FAILED_TESTS"
+          
+          # Calculate passed tests
+          PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
+          echo "Passed tests: $PASSED_TESTS"
+          
+          # Count critical tests by finding @critical in the XML
+          CRITICAL_TESTS=$(grep -c "@critical" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          echo "Critical tests: $CRITICAL_TESTS"
+          
+          # Simple integer pass rate calculation
+          if [ "$TOTAL_TESTS" -eq "0" ]; then
+            PASS_RATE=0
+          else
+            PASS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
+          fi
+          echo "Pass rate: $PASS_RATE%"
+        else
+          echo "No JUnit files found, using default values"
+          TOTAL_TESTS=0
+          PASSED_TESTS=0
+          FAILED_TESTS=0
+          CRITICAL_TESTS=0
+          PASS_RATE=0
+        fi
+        
+        # Create metrics.json file
         echo "{" > metrics.json
         echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> metrics.json
-        echo "  \"total_tests\": 7," >> metrics.json
-        echo "  \"passed_tests\": 7," >> metrics.json
-        echo "  \"failed_tests\": 0," >> metrics.json
-        echo "  \"pass_rate\": 100," >> metrics.json
+        echo "  \"total_tests\": $TOTAL_TESTS," >> metrics.json
+        echo "  \"passed_tests\": $PASSED_TESTS," >> metrics.json
+        echo "  \"failed_tests\": $FAILED_TESTS," >> metrics.json
+        echo "  \"pass_rate\": $PASS_RATE," >> metrics.json
         echo "  \"duration_seconds\": 0," >> metrics.json
-        echo "  \"critical_tests_count\": 3," >> metrics.json
+        echo "  \"critical_tests_count\": $CRITICAL_TESTS," >> metrics.json
         echo "  \"run_id\": \"${{ github.run_id }}\"," >> metrics.json
         echo "  \"repository\": \"${{ github.repository }}\"," >> metrics.json
         echo "  \"branch\": \"${{ github.ref }}\"" >> metrics.json
@@ -148,8 +184,6 @@ jobs:
         
         echo "Created metrics.json:"
         cat metrics.json
-        
-        # Validate JSON format
         echo "Validating JSON format..."
         if ! jq empty metrics.json; then
           echo "WARNING: Invalid JSON detected in metrics.json!"
@@ -173,3 +207,12 @@ jobs:
         git add .
         git commit -m "Update Allure report and metrics"
         git push -f origin gh-pages-temp:gh-pages
+
+    # This step auto triggers the hub's stats workflow
+    - name: Trigger stats workflow update
+      if: success() && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      run: |
+        # Use GitHub CLI to trigger workflow_dispatch event on the stats repo
+        gh workflow run update-stats.yml --repo ${{ github.repository_owner }}/sanity-test-hub
+      env:
+        GITHUB_TOKEN: ${{ secrets.WORKFLOW_HUB_TRIGGER_PAT }}
