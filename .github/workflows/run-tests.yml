@@ -54,6 +54,14 @@ jobs:
         behave --junit --junit-directory ${{ env.JUNIT_RESULTS_DIR }} -f allure_behave.formatter:AllureFormatter -o ${{ env.ALLURE_RESULTS_DIR }} features/
       continue-on-error: true # Continue even if tests fail to allow report upload
 
+    - name: Upload JUnit Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: junit-results
+        path: ${{ env.JUNIT_RESULTS_DIR }}
+        retention-days: 1
+
     - name: Upload Test Results to Datadog
       if: always() # Run this step even if previous steps fail
       env:
@@ -101,25 +109,52 @@ jobs:
         name: allure-report
         path: ${{ env.ALLURE_REPORT_DIR }}
 
-    - name: Generate metrics.json for Sanity Test Hub
-      if: always()
+    - name: Download JUnit Results
+      uses: actions/download-artifact@v4
+      with:
+        name: junit-results  # Make sure this matches what was uploaded in the behave-tests job
+        path: ${{ env.JUNIT_RESULTS_DIR }}
+        
+    - name: Deploy to GitHub Pages
       run: |
-        # Count total test scenarios and their statuses from JUnit XML files
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git checkout --orphan gh-pages-temp
+        git rm -rf .
+        
+        # Copy Allure report
+        cp -r ${{ env.ALLURE_REPORT_DIR }}/* .
+        
+        # ===== Generate metrics.json using actual test results =====
         echo "Generating metrics.json for Sanity Test Hub integration..."
         
-        # Parse JUnit XML files to count passed/failed tests
-        TOTAL_TESTS=$(grep -c "<testcase " ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
-        FAILED_TESTS=$(grep -c "<failure" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
-        PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
-        
-        # Look for critical test cases - assuming you tag critical scenarios with @critical
-        CRITICAL_TESTS=$(grep -c "@critical" features/*.feature || echo 0)
-        
-        # Calculate pass rate
-        if [ $TOTAL_TESTS -eq 0 ]; then
-          PASS_RATE=0
+        # Check if JUnit files exist
+        if [ -d "${{ env.JUNIT_RESULTS_DIR }}" ] && [ "$(ls -A ${{ env.JUNIT_RESULTS_DIR }})" ]; then
+          # Parse JUnit XML files to count passed/failed tests
+          TOTAL_TESTS=$(grep -c "<testcase " ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          FAILED_TESTS=$(grep -c "<failure" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
+          
+          # Get feature files from repo
+          git checkout main -- features/
+          
+          # Look for critical test cases - assuming you tag critical scenarios with @critical
+          CRITICAL_TESTS=$(grep -c "@critical" features/*.feature 2>/dev/null || echo 0)
+          
+          # Calculate pass rate
+          if [ $TOTAL_TESTS -eq 0 ]; then
+            PASS_RATE=0
+          else
+            PASS_RATE=$(awk "BEGIN {printf \"%.2f\", ($PASSED_TESTS * 100) / $TOTAL_TESTS}")
+          fi
         else
-          PASS_RATE=$(echo "scale=2; ($PASSED_TESTS * 100) / $TOTAL_TESTS" | bc)
+          echo "Warning: No JUnit files found. Setting all metrics to 0."
+          # Set all metrics to 0 if no test data available
+          TOTAL_TESTS=0
+          PASSED_TESTS=0
+          FAILED_TESTS=0
+          CRITICAL_TESTS=0
+          PASS_RATE=0
         fi
         
         # Format timestamp
@@ -141,19 +176,7 @@ jobs:
         
         echo "Created metrics.json:"
         cat metrics.json
-
-    - name: Deploy to GitHub Pages
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git checkout --orphan gh-pages-temp
-        git rm -rf .
-        
-        # Copy Allure report
-        cp -r ${{ env.ALLURE_REPORT_DIR }}/* .
-        
-        # Copy metrics.json for Sanity Test Hub
-        cp metrics.json .
+        # ===== End of metrics.json generation =====
         
         # Create a redirect from the root to the Allure report index
         echo '<!DOCTYPE html>
@@ -168,8 +191,5 @@ jobs:
         
         touch .nojekyll
         git add .
-        git commit -m "Update Allure report"
+        git commit -m "Update Allure report and metrics"
         git push -f origin gh-pages-temp:gh-pages
-
-        git push -f origin gh-pages-temp:gh-pages
-
