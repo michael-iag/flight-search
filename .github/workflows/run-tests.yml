@@ -39,7 +39,6 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        # Assuming requirements.txt contains behave, allure-behave, ddtrace (ddtrace might still be useful for custom metrics later, keep it for now)
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Install Datadog CI CLI
@@ -102,13 +101,71 @@ jobs:
         name: allure-report
         path: ${{ env.ALLURE_REPORT_DIR }}
 
+    - name: Generate metrics.json for Sanity Test Hub
+      if: always()
+      run: |
+        # Count total test scenarios and their statuses from JUnit XML files
+        echo "Generating metrics.json for Sanity Test Hub integration..."
+        
+        # Parse JUnit XML files to count passed/failed tests
+        TOTAL_TESTS=$(grep -c "<testcase " ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+        FAILED_TESTS=$(grep -c "<failure" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+        PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
+        
+        # Look for critical test cases - assuming you tag critical scenarios with @critical
+        CRITICAL_TESTS=$(grep -c "@critical" features/*.feature || echo 0)
+        
+        # Calculate pass rate
+        if [ $TOTAL_TESTS -eq 0 ]; then
+          PASS_RATE=0
+        else
+          PASS_RATE=$(echo "scale=2; ($PASSED_TESTS * 100) / $TOTAL_TESTS" | bc)
+        fi
+        
+        # Format timestamp
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        
+        # Create metrics.json file
+        echo "{" > metrics.json
+        echo "  \"timestamp\": \"$TIMESTAMP\"," >> metrics.json
+        echo "  \"total_tests\": $TOTAL_TESTS," >> metrics.json
+        echo "  \"passed_tests\": $PASSED_TESTS," >> metrics.json
+        echo "  \"failed_tests\": $FAILED_TESTS," >> metrics.json
+        echo "  \"pass_rate\": $PASS_RATE," >> metrics.json
+        echo "  \"duration_seconds\": 0," >> metrics.json
+        echo "  \"critical_tests_count\": $CRITICAL_TESTS," >> metrics.json
+        echo "  \"run_id\": \"${{ github.run_id }}\"," >> metrics.json
+        echo "  \"repository\": \"${{ github.repository }}\"," >> metrics.json
+        echo "  \"branch\": \"${{ github.ref }}\"" >> metrics.json
+        echo "}" >> metrics.json
+        
+        echo "Created metrics.json:"
+        cat metrics.json
+
     - name: Deploy to GitHub Pages
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git checkout --orphan gh-pages-temp
         git rm -rf .
+        
+        # Copy Allure report
         cp -r ${{ env.ALLURE_REPORT_DIR }}/* .
+        
+        # Copy metrics.json for Sanity Test Hub
+        cp metrics.json .
+        
+        # Create a redirect from the root to the Allure report index
+        echo '<!DOCTYPE html>
+        <html>
+        <head>
+          <meta http-equiv="refresh" content="0; url=index.html">
+        </head>
+        <body>
+          <p>Redirecting to test report...</p>
+        </body>
+        </html>' > dashboard.html
+        
         touch .nojekyll
         git add .
         git commit -m "Update Allure report"
