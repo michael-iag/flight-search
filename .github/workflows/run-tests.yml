@@ -132,42 +132,71 @@ jobs:
         echo "Checking JUnit directory..."
         ls -la ${{ env.JUNIT_RESULTS_DIR }}
         
-        # Extract metrics directly from JUnit XML with proper parsing
-        if [ -d "${{ env.JUNIT_RESULTS_DIR }}" ] && [ "$(ls -A ${{ env.JUNIT_RESULTS_DIR }})" ]; then
-          echo "Extracting metrics from JUnit XML files..."
-          
-          # Total tests - count testcase elements
-          TOTAL_TESTS=$(grep -c "<testcase " ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
-          echo "Total tests: $TOTAL_TESTS"
-          
-          # Failed tests - count failures 
-          FAILED_TESTS=$(grep -c "status=\"failed\"" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
-          echo "Failed tests: $FAILED_TESTS"
-          
-          # Calculate passed tests
-          PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
-          echo "Passed tests: $PASSED_TESTS"
-          
-          # Count critical tests by finding @critical in the XML
-          CRITICAL_TESTS=$(grep -c "@critical" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
-          echo "Critical tests: $CRITICAL_TESTS"
-          
-          # Simple integer pass rate calculation
-          if [ "$TOTAL_TESTS" -eq "0" ]; then
-            PASS_RATE=0
-          else
-            PASS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-          fi
-          echo "Pass rate: $PASS_RATE%"
-        else
-          echo "No JUnit files found, using default values"
-          TOTAL_TESTS=0
-          PASSED_TESTS=0
-          FAILED_TESTS=0
-          CRITICAL_TESTS=0
-          PASS_RATE=0
-        fi
-        
+        # Create a Python script for reliable parsing
+        cat > parse_junit.py << EOF
+        import sys
+        import xml.etree.ElementTree as ET
+        import os
+        import glob
+
+        # Find XML files
+        xml_files = glob.glob(os.path.join('${{ env.JUNIT_RESULTS_DIR }}', '*.xml'))
+        if not xml_files:
+            print("No XML files found")
+            sys.exit(1)
+
+        total_tests = 0
+        failed_tests = 0
+        critical_tests = 0
+
+        # Process each XML file
+        for xml_file in xml_files:
+            try:
+                tree = ET.parse(xml_file)
+                root = tree.getroot()
+                
+                # Count test cases
+                testcases = root.findall('.//testcase')
+                total_tests += len(testcases)
+                
+                # Count failed tests
+                failures = root.findall('.//testcase/failure')
+                failed_tests += len(failures)
+                
+                # Count critical tests by searching system-out for @critical tag
+                for testcase in testcases:
+                    sysout = testcase.find('system-out')
+                    if sysout is not None and '@critical' in sysout.text:
+                        critical_tests += 1
+            except Exception as e:
+                print(f"Error processing {xml_file}: {e}")
+
+        # Calculate passed tests and pass rate
+        passed_tests = total_tests - failed_tests
+        pass_rate = 0 if total_tests == 0 else int((passed_tests * 100) / total_tests)
+
+        # Output as simple text for bash to read
+        print(f"TOTAL_TESTS={total_tests}")
+        print(f"PASSED_TESTS={passed_tests}")
+        print(f"FAILED_TESTS={failed_tests}")
+        print(f"CRITICAL_TESTS={critical_tests}")
+        print(f"PASS_RATE={pass_rate}")
+        EOF
+
+        # Run the Python script and capture the output
+        echo "Running Python parser..."
+        python parse_junit.py > metrics_data.txt
+
+        # Source the values
+        source <(cat metrics_data.txt)
+
+        echo "Extracted metrics:"
+        echo "Total tests: $TOTAL_TESTS"
+        echo "Passed tests: $PASSED_TESTS"
+        echo "Failed tests: $FAILED_TESTS"
+        echo "Critical tests: $CRITICAL_TESTS"
+        echo "Pass rate: $PASS_RATE%"
+
         # Create metrics.json file
         echo "{" > metrics.json
         echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> metrics.json
