@@ -130,22 +130,31 @@ jobs:
         
         # Check if JUnit files exist
         if [ -d "${{ env.JUNIT_RESULTS_DIR }}" ] && [ "$(ls -A ${{ env.JUNIT_RESULTS_DIR }})" ]; then
-          # Parse JUnit XML files to count passed/failed tests
+          echo "Found JUnit XML files - parsing results"
+          
+          # Display file contents for debugging
+          echo "JUnit XML files found:"
+          ls -la ${{ env.JUNIT_RESULTS_DIR }}
+          
+          # Parse with more reliable methods
           TOTAL_TESTS=$(grep -c "<testcase " ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          echo "Total tests found: $TOTAL_TESTS"
+          
           FAILED_TESTS=$(grep -c "<failure" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          echo "Failed tests found: $FAILED_TESTS"
+          
           PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
+          echo "Passed tests calculated: $PASSED_TESTS"
           
-          # Get feature files from repo
-          git checkout main -- features/
+          # Search for @critical tags in the XML content
+          CRITICAL_TESTS=$(grep -c "@critical" ${{ env.JUNIT_RESULTS_DIR }}/*.xml || echo 0)
+          echo "Critical tests found: $CRITICAL_TESTS"
           
-          # Look for critical test cases - assuming you tag critical scenarios with @critical
-          CRITICAL_TESTS=$(grep -c "@critical" features/*.feature 2>/dev/null || echo 0)
-          
-          # Calculate pass rate
+          # Calculate pass rate with simple integer division
           if [ $TOTAL_TESTS -eq 0 ]; then
             PASS_RATE=0
           else
-            PASS_RATE=$(awk "BEGIN {printf \"%.2f\", ($PASSED_TESTS * 100) / $TOTAL_TESTS}")
+            PASS_RATE=$((PASSED_TESTS * 100 / TOTAL_TESTS))
           fi
         else
           echo "Warning: No JUnit files found. Setting all metrics to 0."
@@ -160,7 +169,7 @@ jobs:
         # Format timestamp
         TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         
-        # Create metrics.json file
+        # Create metrics.json file with proper syntax
         echo "{" > metrics.json
         echo "  \"timestamp\": \"$TIMESTAMP\"," >> metrics.json
         echo "  \"total_tests\": $TOTAL_TESTS," >> metrics.json
