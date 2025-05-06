@@ -115,7 +115,7 @@ jobs:
         name: junit-results  # Make sure this matches what was uploaded in the behave-tests job
         path: ${{ env.JUNIT_RESULTS_DIR }}
         
-    - name: Deploy to GitHub Pages
+    - name: Prepare GitHub Pages Branch
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -124,7 +124,9 @@ jobs:
         
         # Copy Allure report
         cp -r ${{ env.ALLURE_REPORT_DIR }}/* .
-        
+
+    - name: Extract Test Metrics
+      run: |
         # ===== Generate metrics.json using actual test results =====
         echo "Generating metrics.json for Sanity Test Hub integration..."
         
@@ -183,13 +185,11 @@ jobs:
         print(f"PASS_RATE={pass_rate}")
         EOF
 
-        # Run the Python script and capture the output
+        # Run the Python script and source the results
         echo "Running Python parser..."
         python parse_junit.py > metrics_data.txt
-
-        # Source the values
         source <(cat metrics_data.txt)
-
+        
         echo "Extracted metrics:"
         echo "Total tests: $TOTAL_TESTS"
         echo "Passed tests: $PASSED_TESTS"
@@ -197,6 +197,8 @@ jobs:
         echo "Critical tests: $CRITICAL_TESTS"
         echo "Pass rate: $PASS_RATE%"
 
+    - name: Generate Metrics JSON
+      run: |
         # Create metrics.json file
         echo "{" > metrics.json
         echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"," >> metrics.json
@@ -219,8 +221,9 @@ jobs:
         else
           echo "JSON is valid."
         fi
-        # ===== End of metrics.json generation =====
-        
+
+    - name: Create Dashboard HTML
+      run: |
         # Create a redirect from the root to the Allure report index
         echo '<!DOCTYPE html>' > dashboard.html
         echo '<html>' >> dashboard.html
@@ -233,6 +236,9 @@ jobs:
         echo '</html>' >> dashboard.html
         
         touch .nojekyll
+
+    - name: Deploy to GitHub Pages
+      run: |
         git add .
         git commit -m "Update Allure report and metrics"
         git push -f origin gh-pages-temp:gh-pages
