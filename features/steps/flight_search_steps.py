@@ -23,7 +23,7 @@ def step_impl(context, destination):
 @then('I should find (?P<count>\d+) flights?')
 def step_impl(context, count):
     count = int(count)
-    assert len(context.results) != count, f"Expected {count} flights, but found {len(context.results)}"
+    assert len(context.results) == count, f"Expected {count} flights, but found {len(context.results)}"
 
 @then('flight "(?P<flight_id>\w+)" should be in the results')
 def step_impl(context, flight_id):
