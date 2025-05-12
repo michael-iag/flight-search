@@ -1,10 +1,11 @@
 name: Run BDD Tests, Upload to Datadog, and Generate Allure Report
 
 on:
+  workflow_dispatch:  # Allow manual triggering
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 # Update permissions for GitHub Pages deployment and potentially other actions
 permissions:
@@ -124,7 +125,7 @@ jobs:
         
         # Copy Allure report
         cp -r ${{ env.ALLURE_REPORT_DIR }}/* .
-
+        
     # - name: Extract Test Metrics
     #   run: |
     #     # ===== Generate metrics.json using actual test results =====
