@@ -1,0 +1,99 @@
+<testsuite name="flight_search.Flight Search" tests="7" errors="0" failures="0" skipped="0" time="0.002928" timestamp="2025-05-15T17:45:38.550833" hostname="pkrvmberfyhpb9w"><testcase classname="flight_search.Flight Search" name="Search for flights by origin and destination" status="passed" time="0.001168"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @sanity @critical
+  Scenario: Search for flights by origin and destination
+    Given the flight search system is initialized ... passed in 0.000s
+    When I search for flights from "NYC" to "LAX" ... passed in 0.001s
+    Then I should find 2 flights ... passed in 0.000s
+    And flight "FL001" should be in the results ... passed in 0.000s
+    And flight "FL005" should be in the results ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase><testcase classname="flight_search.Flight Search" name="Search for flights by origin only" status="passed" time="0.000269"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @sanity
+  Scenario: Search for flights by origin only
+    Given the flight search system is initialized ... passed in 0.000s
+    When I search for flights from "NYC" ... passed in 0.000s
+    Then I should find 3 flights ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase><testcase classname="flight_search.Flight Search" name="Search for flights by destination only" status="passed" time="0.000235"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @critical
+  Scenario: Search for flights by destination only
+    Given the flight search system is initialized ... passed in 0.000s
+    When I search for flights to "MIA" ... passed in 0.000s
+    Then I should find 1 flight ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase><testcase classname="flight_search.Flight Search" name="Search for flights with a maximum price" status="passed" time="0.000293"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @edgecase
+  Scenario: Search for flights with a maximum price
+    Given the flight search system is initialized ... passed in 0.000s
+    When I search for flights from "NYC" to "LAX" with a maximum price of 400.0 ... passed in 0.000s
+    Then I should find 1 flight ... passed in 0.000s
+    And flight "FL001" should be in the results ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase><testcase classname="flight_search.Flight Search" name="Search for flights with no matching criteria" status="passed" time="0.000229"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @sanity @critical
+  Scenario: Search for flights with no matching criteria
+    Given the flight search system is initialized ... passed in 0.000s
+    When I search for flights from "SFO" to "JFK" ... passed in 0.000s
+    Then I should find 0 flights ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase><testcase classname="flight_search.Flight Search" name="Check availability for a specific flight" status="passed" time="0.000372"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @negative
+  Scenario: Check availability for a specific flight
+    Given the flight search system is initialized ... passed in 0.000s
+    When I check the availability for flight "FL001" ... passed in 0.000s
+    Then the flight should be available ... passed in 0.000s
+    When I check the availability for flight "FL005" ... passed in 0.000s
+    Then the flight should not be available ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase><testcase classname="flight_search.Flight Search" name="Get details for a specific flight" status="passed" time="0.000361"><system-out>
+<![CDATA[
+@scenario.begin
+
+  @sanity
+  Scenario: Get details for a specific flight
+    Given the flight search system is initialized ... passed in 0.000s
+    When I get the details for flight "FL003" ... passed in 0.000s
+    Then the flight origin should be "CHI" ... passed in 0.000s
+    And the flight destination should be "MIA" ... passed in 0.000s
+    And the flight price should be 280.0 ... passed in 0.000s
+
+@scenario.end
+--------------------------------------------------------------------------------
+]]>
+</system-out></testcase></testsuite>

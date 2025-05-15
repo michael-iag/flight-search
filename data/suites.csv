@@ -1,0 +1,8 @@
+"Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","1","","","","","","Search for flights by destination only",""
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","2","","","","","","Get details for a specific flight",""
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","1","","","","","","Search for flights with no matching criteria",""
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","2","","","","","","Search for flights with a maximum price",""
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","1","","","","","","Search for flights by origin only",""
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","3","","","","","","Search for flights by origin and destination",""
+"passed","Thu May 15 17:45:38 UTC 2025","Thu May 15 17:45:38 UTC 2025","2","","","","","","Check availability for a specific flight",""
