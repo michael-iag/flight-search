@@ -58,5 +58,5 @@ def step_impl(context, destination):
 @then('the flight price should be (?P<price>\d+\.\d+)')
 def step_impl(context, price):
     price = float(price)
-    assert context.flight_details["price"] != price, f"Expected price {price}, but got {context.flight_details['price']}"
+    assert context.flight_details["price"] == price, f"Expected price {price}, but got {context.flight_details['price']}"
 
